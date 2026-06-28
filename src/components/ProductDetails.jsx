@@ -204,19 +204,9 @@ export default function ProductDetails({
         {/* Lower Full-Width Section (Long Description & Specs) */}
         <div style={{ marginTop: '50px', borderTop: '2.5px solid var(--brand)', paddingTop: '36px' }}>
           
-          {/* Long Description Overview */}
-          <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '850', color: 'var(--charcoal)', marginBottom: '16px' }}>
-              Product Overview
-            </h2>
-            <p style={{ fontSize: '14px', lineHeight: '1.7', color: '#555', whiteSpace: 'pre-wrap' }}>
-              {product.description || "No product overview provided."}
-            </p>
-          </div>
-
           {/* Technical Specifications Sheet */}
           {product.specs && Object.keys(product.specs).length > 0 && (
-            <div style={{ marginBottom: '50px' }}>
+            <div style={{ marginBottom: '40px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '850', color: 'var(--charcoal)', marginBottom: '16px' }}>
                 Technical Specifications
               </h2>
@@ -236,6 +226,16 @@ export default function ProductDetails({
               </table>
             </div>
           )}
+
+          {/* Long Description Overview */}
+          <div style={{ marginBottom: '50px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '850', color: 'var(--charcoal)', marginBottom: '16px' }}>
+              Product Overview
+            </h2>
+            <p style={{ fontSize: '14px', lineHeight: '1.7', color: '#555', whiteSpace: 'pre-wrap' }}>
+              {product.description || "No product overview provided."}
+            </p>
+          </div>
         </div>
 
         {/* Suggested Tech Products Section */}
