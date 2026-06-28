@@ -25,29 +25,39 @@ export default function Auth({
     setIsLoginMode(activePage === 'login');
   }, [activePage]);
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!loginEmail || !loginPass) {
       addToast('Please enter both email and password!');
       return;
     }
     
-    // Extract name from email for mock personalized hello
-    const emailName = loginEmail.split('@')[0];
-    const capitalizedFirstName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPass })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        addToast(data.message || 'Login failed.');
+        return;
+      }
 
-    const mockUser = {
-      firstName: capitalizedFirstName,
-      lastName: 'Perera',
-      email: loginEmail
-    };
-
-    setCurrentUser(mockUser);
-    addToast(`Logged in successfully! Welcome, ${capitalizedFirstName}.`);
-    setActivePage('home');
+      // Save token & user
+      localStorage.setItem('token', data.token);
+      setCurrentUser(data.user);
+      addToast(`Logged in successfully! Welcome, ${data.user.firstName}.`);
+      setActivePage('home');
+    } catch (err) {
+      console.error(err);
+      addToast('Network error connecting to backend API.');
+    }
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     if (!suFirst || !suLast || !suEmail || !suPhone || !suPass) {
       addToast('Please fill out all required fields!');
@@ -58,16 +68,35 @@ export default function Auth({
       return;
     }
 
-    const mockUser = {
-      firstName: suFirst,
-      lastName: suLast,
-      email: suEmail,
-      phone: suPhone
-    };
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: suFirst,
+          lastName: suLast,
+          email: suEmail,
+          phone: suPhone,
+          password: suPass
+        })
+      });
 
-    setCurrentUser(mockUser);
-    addToast('Account created successfully!');
-    setActivePage('home');
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast(data.message || 'Registration failed.');
+        return;
+      }
+
+      // Save token & user
+      localStorage.setItem('token', data.token);
+      setCurrentUser(data.user);
+      addToast('Account created successfully!');
+      setActivePage('home');
+    } catch (err) {
+      console.error(err);
+      addToast('Network error connecting to backend API.');
+    }
   };
 
   return (

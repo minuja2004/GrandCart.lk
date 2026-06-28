@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 export default function Dashboard({ 
   products, 
   setProducts, 
-  addToast 
+  addToast, 
+  fetchProducts 
 }) {
   const [activeTab, setActiveTab] = useState('products');
+  const [orders, setOrders] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
@@ -21,6 +23,35 @@ export default function Dashboard({
   // Image upload status
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState('');
+
+  // Fetch Live Orders
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data);
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'orders' || activeTab === 'analytics') {
+      fetchOrders();
+    }
+  }, [activeTab]);
+
+  // Analytics Math
+  const analyticsData = useMemo(() => {
+    const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
+    const totalOrders = orders.length;
+    const avgOrder = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+    const activeListings = products.length;
+
+    return { totalRevenue, totalOrders, avgOrder, activeListings };
+  }, [orders, products]);
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
@@ -42,24 +73,52 @@ export default function Dashboard({
     setCategory(p.category);
     setPrice(p.price.toString());
     setStock(p.stock.toString());
-    setImageEmoji(p.image);
+    
+    // Check if image is URL or Emoji
+    if (p.image.startsWith('http') || p.image.startsWith('cloudinary://')) {
+      setUploadedUrl(p.image);
+      setImageEmoji('💻');
+    } else {
+      setImageEmoji(p.image);
+      setUploadedUrl('');
+    }
+    
     setDescription(p.description || '');
-    setUploadedUrl('');
     setIsModalOpen(true);
   };
 
-  const handleMockCloudinaryUpload = () => {
+  // Real Cloudinary File Upload handler
+  const handleRealCloudinaryUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     setUploadingImage(true);
-    addToast('Uploading image to Cloudinary (Mocking API call)...');
-    
-    setTimeout(() => {
+    addToast('Uploading image to Cloudinary secure cloud...');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUploadedUrl(data.url);
+        addToast('Image uploaded successfully to Cloudinary!');
+      } else {
+        addToast(data.message || 'Cloudinary upload failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('Network error during image upload.');
+    } finally {
       setUploadingImage(false);
-      setUploadedUrl('cloudinary://grandcart-lk/uploads/tech-product-image.png');
-      addToast('Image uploaded successfully to Cloudinary!');
-    }, 2000);
+    }
   };
 
-  const handleSaveProduct = (e) => {
+  const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!name || !brand || !price || !stock) {
       addToast('Please fill out all required fields!');
@@ -68,62 +127,75 @@ export default function Dashboard({
 
     const priceNum = Number(price);
     const stockNum = Number(stock);
+    const finalImage = uploadedUrl || imageEmoji;
 
-    if (editingProduct) {
-      // Edit Product logic
-      const updatedList = products.map((p) => {
-        if (p.id === editingProduct.id) {
-          return {
-            ...p,
-            name,
-            brand,
-            category,
-            price: priceNum,
-            stock: stockNum,
-            image: imageEmoji,
-            description,
-            // Maintain specs or update them
-            specs: p.specs || { "Processor": "N/A", "Warranty": "1 Year" }
-          };
-        }
-        return p;
-      });
-      setProducts(updatedList);
-      addToast('Product updated successfully!');
-    } else {
-      // Add Product logic
-      const newProd = {
-        id: `prod-${Date.now()}`,
-        name,
-        brand,
-        category,
-        price: priceNum,
-        stock: stockNum,
-        image: imageEmoji,
-        rating: 5,
-        stars: '★★★★★',
-        reviews: 0,
-        badge: 'New',
-        badgeType: 'new',
-        description,
-        specs: {
-          "Brand": brand,
-          "Category": category,
-          "Warranty": "1 Year Warranty",
-          "Upload Source": uploadedUrl ? "Cloudinary Secure" : "Local Mock Assets"
-        }
-      };
-      setProducts([newProd, ...products]);
-      addToast('New product added successfully!');
+    const payload = {
+      name,
+      brand,
+      category,
+      price: priceNum,
+      stock: stockNum,
+      image: finalImage,
+      description,
+      specs: {
+        "Brand": brand,
+        "Category": category,
+        "Warranty": "1 Year Warranty",
+        "Upload Source": uploadedUrl ? "Cloudinary Cloud" : "Standard Icon"
+      }
+    };
+
+    try {
+      let res;
+      if (editingProduct) {
+        // PUT update API
+        res = await fetch(`/api/products/${editingProduct._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        // POST create API
+        res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      const data = await res.json();
+
+      if (res.ok) {
+        addToast(editingProduct ? 'Product updated successfully!' : 'New product listed successfully!');
+        fetchProducts(); // Refresh list on App level
+        setIsModalOpen(false);
+      } else {
+        addToast(data.message || 'Error saving product details.');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('Network error saving product.');
     }
-
-    setIsModalOpen(false);
   };
 
-  const handleDeleteProduct = (id) => {
+  const handleDeleteProduct = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(p => p.id !== id));
-      addToast('Product deleted successfully!');
+      try {
+        const res = await fetch(`/api/products/${id}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          addToast('Product deleted successfully.');
+          fetchProducts(); // Refresh list
+        } else {
+          addToast(data.message || 'Error deleting product.');
+        }
+      } catch (err) {
+        console.error(err);
+        addToast('Network error deleting product.');
+      }
     }
   };
 
@@ -184,10 +256,20 @@ export default function Dashboard({
                     </thead>
                     <tbody>
                       {products.map((p) => (
-                        <tr key={p.id}>
+                        <tr key={p._id}>
                           <td>
                             <div className="dash-prod-cell">
-                              <span className="dash-prod-icon">{p.image}</span>
+                              <span className="dash-prod-icon">
+                                {p.image.startsWith('http') ? (
+                                  <img 
+                                    src={p.image} 
+                                    alt="" 
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} 
+                                  />
+                                ) : (
+                                  p.image
+                                )}
+                              </span>
                               <div>
                                 <div style={{ fontWeight: '700', fontSize: '13.5px' }}>{p.name}</div>
                                 <div style={{ fontSize: '11px', color: '#888' }}>Brand: {p.brand}</div>
@@ -222,7 +304,7 @@ export default function Dashboard({
                               <button 
                                 className="btn-dash-icon delete" 
                                 title="Delete Product"
-                                onClick={() => handleDeleteProduct(p.id)}
+                                onClick={() => handleDeleteProduct(p._id)}
                               >
                                 <i className="ti ti-trash" aria-hidden="true"></i>
                               </button>
@@ -249,28 +331,28 @@ export default function Dashboard({
                   <div className="dash-stat-icon-box">💰</div>
                   <div className="dash-stat-info">
                     <span className="dash-stat-label">Total Revenue</span>
-                    <span className="dash-stat-value">Rs. 1,450,000</span>
+                    <span className="dash-stat-value">Rs. {analyticsData.totalRevenue.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="dash-stat-card">
                   <div className="dash-stat-icon-box">📦</div>
                   <div className="dash-stat-info">
                     <span className="dash-stat-label">Total Orders</span>
-                    <span className="dash-stat-value">124</span>
+                    <span className="dash-stat-value">{analyticsData.totalOrders}</span>
                   </div>
                 </div>
                 <div className="dash-stat-card">
                   <div className="dash-stat-icon-box">⚡</div>
                   <div className="dash-stat-info">
                     <span className="dash-stat-label">Average Order</span>
-                    <span className="dash-stat-value">Rs. 11,690</span>
+                    <span className="dash-stat-value">Rs. {analyticsData.avgOrder.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="dash-stat-card">
                   <div className="dash-stat-icon-box">🛡️</div>
                   <div className="dash-stat-info">
-                    <span className="dash-stat-label">Listed Items</span>
-                    <span className="dash-stat-value">{products.length}</span>
+                    <span className="dash-stat-label">Active Listings</span>
+                    <span className="dash-stat-value">{analyticsData.activeListings}</span>
                   </div>
                 </div>
               </div>
@@ -337,39 +419,36 @@ export default function Dashboard({
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td><code>GCLK-482910</code></td>
-                        <td><strong>Supun Pathirana</strong></td>
-                        <td>Rs. 89,900</td>
-                        <td>COD</td>
-                        <td>
-                          <span style={{ background: '#E6F4EA', color: '#137333', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '750' }}>
-                            Delivered
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><code>GCLK-192038</code></td>
-                        <td><strong>Nimali Perera</strong></td>
-                        <td>Rs. 54,000</td>
-                        <td>Koko (Card)</td>
-                        <td>
-                          <span style={{ background: '#FEF7E0', color: '#B06000', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '750' }}>
-                            Processing
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><code>GCLK-882019</code></td>
-                        <td><strong>Dilhan Jayasinghe</strong></td>
-                        <td>Rs. 295,000</td>
-                        <td>Credit Card</td>
-                        <td>
-                          <span style={{ background: '#FCE8E6', color: '#C5221F', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '750' }}>
-                            Pending Payment
-                          </span>
-                        </td>
-                      </tr>
+                      {orders.length > 0 ? (
+                        orders.map((order) => (
+                          <tr key={order._id}>
+                            <td><code>{order.orderId}</code></td>
+                            <td><strong>{order.customerDetails.fullName}</strong></td>
+                            <td>Rs. {order.total.toLocaleString()}</td>
+                            <td>{order.paymentMethod.toUpperCase()}</td>
+                            <td>
+                              <span 
+                                style={{ 
+                                  background: order.status === 'Delivered' ? '#E6F4EA' : '#FEF7E0', 
+                                  color: order.status === 'Delivered' ? '#137333' : '#B06000', 
+                                  padding: '3px 8px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '11px', 
+                                  fontWeight: '750' 
+                                }}
+                              >
+                                {order.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', color: '#888', padding: '24px' }}>
+                            No orders placed yet.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -484,9 +563,16 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                {/* Cloudinary Mock Box */}
+                {/* Cloudinary Image Uploader */}
                 <div className="form-group" style={{ marginTop: '14px' }}>
-                  <label className="form-label">Cloudinary Image Upload (Simulation)</label>
+                  <label className="form-label">Cloudinary Image Upload (Real File)</label>
+                  <input 
+                    type="file" 
+                    id="prod-image-file" 
+                    accept="image/*" 
+                    onChange={handleRealCloudinaryUpload} 
+                    style={{ display: 'none' }} 
+                  />
                   <div 
                     style={{ 
                       border: '2px dashed var(--border-gold)', 
@@ -496,17 +582,24 @@ export default function Dashboard({
                       background: 'var(--brand-pale)',
                       cursor: 'pointer'
                     }}
-                    onClick={handleMockCloudinaryUpload}
+                    onClick={() => document.getElementById('prod-image-file').click()}
                   >
                     {uploadingImage ? (
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#D48E00' }}>Uploading to Cloudinary...</span>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#D48E00' }}>Uploading to Cloudinary secure server...</span>
                     ) : uploadedUrl ? (
-                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a' }}>
-                        ✓ {uploadedUrl}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a' }}>
+                          ✓ Image Uploaded Successfully!
+                        </span>
+                        <img 
+                          src={uploadedUrl} 
+                          alt="" 
+                          style={{ maxHeight: '80px', objectFit: 'contain', border: '1px solid #ddd', borderRadius: '4px' }} 
+                        />
+                      </div>
                     ) : (
                       <span style={{ fontSize: '12px', color: '#999' }}>
-                        Click to simulate uploading product image to **Cloudinary** secure storage
+                        Click to upload product image to **Cloudinary** secure storage
                       </span>
                     )}
                   </div>

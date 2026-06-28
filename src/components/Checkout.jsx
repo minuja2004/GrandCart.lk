@@ -44,7 +44,7 @@ export default function Checkout({
     });
   };
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
     
     // Quick validation
@@ -55,10 +55,46 @@ export default function Checkout({
 
     // Generate random Order ID
     const generatedId = `GCLK-${Math.floor(100000 + Math.random() * 900000)}`;
-    setOrderId(generatedId);
-    setIsOrdered(true);
-    clearCart();
-    addToast('Order Placed Successfully!');
+
+    // Prepare API body items
+    const orderItems = cart.map((item) => ({
+      productId: item.product._id,
+      name: item.product.name,
+      quantity: item.quantity,
+      price: item.product.price
+    }));
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: generatedId,
+          items: orderItems,
+          customerDetails: formData,
+          paymentMethod,
+          subtotal,
+          deliveryFee,
+          discount: discountAmount,
+          total
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast(data.message || 'Error processing your checkout.');
+        return;
+      }
+
+      setOrderId(generatedId);
+      setIsOrdered(true);
+      clearCart();
+      addToast('Order Placed Successfully!');
+    } catch (err) {
+      console.error(err);
+      addToast('Network error saving your order. Please try again.');
+    }
   };
 
   if (isOrdered) {
@@ -288,7 +324,7 @@ export default function Checkout({
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
               {cart.map((item) => (
-                <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <div key={item.product._id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                   <span style={{ color: '#555', maxWidth: '70%' }}>
                     {item.quantity}x {item.product.name.length > 30 ? item.product.name.substring(0, 30) + '...' : item.product.name}
                   </span>

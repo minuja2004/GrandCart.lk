@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import Shop from './components/Shop';
@@ -7,11 +7,10 @@ import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
-import { INITIAL_PRODUCTS } from './data/products';
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
   
@@ -23,6 +22,44 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [coupon, setCoupon] = useState(null);
   const [toasts, setToasts] = useState([]);
+
+  // Fetch Products from Express API
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+      } else {
+        console.error("Failed to fetch products.");
+      }
+    } catch (err) {
+      console.error("Error connecting to backend API:", err);
+    }
+  };
+
+  // On mount: fetch products & check localStorage credentials
+  useEffect(() => {
+    fetchProducts();
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
+  // Monitor Auth changes to sync localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+    }
+  }, [currentUser]);
 
   // Toast Notifications Helper
   const addToast = (message) => {
@@ -36,12 +73,12 @@ export default function App() {
   // Cart operations
   const addToCart = (product, quantity) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.product.id === product.id);
+      const existingItem = prevCart.find((item) => item.product._id === product._id);
       if (existingItem) {
         const newQty = Math.min(existingItem.quantity + quantity, product.stock);
         addToast(`Updated ${product.brand} quantity in cart to ${newQty}!`);
         return prevCart.map((item) => 
-          item.product.id === product.id ? { ...item, quantity: newQty } : item
+          item.product._id === product._id ? { ...item, quantity: newQty } : item
         );
       }
       addToast(`Added ${product.brand} to cart!`);
@@ -52,13 +89,13 @@ export default function App() {
   const updateCartQty = (productId, newQty) => {
     setCart((prevCart) => 
       prevCart.map((item) => 
-        item.product.id === productId ? { ...item, quantity: Math.max(1, newQty) } : item
+        item.product._id === productId ? { ...item, quantity: Math.max(1, newQty) } : item
       )
     );
   };
 
   const removeFromCart = (productId) => {
-    setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
+    setCart((prevCart) => prevCart.filter((item) => item.product._id !== productId));
     addToast('Item removed from cart.');
   };
 
@@ -167,6 +204,7 @@ export default function App() {
             products={products}
             setProducts={setProducts}
             addToast={addToast}
+            fetchProducts={fetchProducts}
           />
         )}
       </div>
