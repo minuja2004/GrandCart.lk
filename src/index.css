@@ -1084,11 +1084,8 @@ body, html {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 40px;
-  background: var(--white);
-  border: 1.5px solid var(--border-gold);
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  padding: 20px 0;
 }
 .details-gallery {
   display: flex;
