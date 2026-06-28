@@ -1082,7 +1082,7 @@ body, html {
 }
 .details-grid {
   display: grid;
-  grid-template-columns: 3.8fr 3.8fr 2.4fr;
+  grid-template-columns: 4.6fr 3.6fr 2.4fr;
   gap: 30px;
   background: transparent;
   padding: 20px 0;
@@ -1096,17 +1096,17 @@ body, html {
 }
 .details-gallery {
   display: flex;
-  gap: 16px;
+  gap: 10px;
 }
 .vertical-thumbnails {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 76px;
+  width: 70px;
 }
 .main-img-box {
   flex: 1;
-  height: 420px;
+  height: 460px;
   background: var(--white);
   border: 1.5px solid var(--border-gold);
   border-radius: 16px;
@@ -1116,8 +1116,8 @@ body, html {
   overflow: hidden;
 }
 .thumb-box {
-  width: 76px;
-  height: 76px;
+  width: 70px;
+  height: 70px;
   background: var(--white);
   border: 1.5px solid var(--border-gold);
   border-radius: 10px;

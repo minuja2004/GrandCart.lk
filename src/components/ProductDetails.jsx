@@ -129,7 +129,7 @@ export default function ProductDetails({
                 <img 
                   src={thumbs[activeThumb]} 
                   alt={product.name} 
-                  style={{ width: '90%', height: '90%', objectFit: 'contain' }} 
+                  style={{ width: '96%', height: '96%', objectFit: 'contain' }} 
                 />
               ) : (
                 <span style={{ fontSize: '120px' }}>{thumbs[activeThumb]}</span>
