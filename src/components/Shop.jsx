@@ -13,7 +13,14 @@ export default function Shop({
   // Category URL parameter sync
   const selectedCategory = searchParams.get('category') || 'All';
   
-  const [searchTerm, setSearchTerm] = useState('');
+  // Search query parameter sync
+  const searchParamsQuery = searchParams.get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(searchParamsQuery);
+
+  useEffect(() => {
+    setSearchTerm(searchParamsQuery);
+  }, [searchParamsQuery]);
+
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [maxPrice, setMaxPrice] = useState(1000000);
   const [sortBy, setSortBy] = useState('popular');
@@ -51,7 +58,10 @@ export default function Shop({
 
   // Reset all filters
   const handleResetFilters = () => {
-    setSelectedCategory('All');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('category');
+    newParams.delete('search');
+    setSearchParams(newParams);
     setSelectedBrands([]);
     setMaxPrice(1000000);
     setOnlyInStock(false);
@@ -136,7 +146,17 @@ export default function Shop({
               className="form-input" 
               placeholder="iPhone, Asus, mouse..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchTerm(val);
+                const newParams = new URLSearchParams(searchParams);
+                if (val) {
+                  newParams.set('search', val);
+                } else {
+                  newParams.delete('search');
+                }
+                setSearchParams(newParams);
+              }}
               style={{ padding: '8px 10px', fontSize: '13px' }}
             />
           </div>

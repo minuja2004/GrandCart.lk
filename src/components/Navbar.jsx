@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export default function Navbar({ 
@@ -9,10 +9,20 @@ export default function Navbar({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState('');
 
   const handleLogout = () => {
     setCurrentUser(null);
     navigate('/');
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchInput.trim())}`);
+    } else {
+      navigate('/shop');
+    }
   };
 
   const isHome = location.pathname === '/';
@@ -41,67 +51,84 @@ export default function Navbar({
         </span>
       </Link>
 
-      {/* Nav Links */}
-      <ul className="nav-links">
-        <li>
-          <Link to="/" className={isHome ? 'active' : ''}>
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link to="/shop" className={isShop ? 'active' : ''}>
-            Shop Tech
-          </Link>
-        </li>
-        <li>
-          <Link to="/dashboard" className={isDashboard ? 'active' : ''}>
-            Seller Portal
-          </Link>
-        </li>
-      </ul>
+      {/* Middle Long Search Bar */}
+      <form className="nav-search-form" onSubmit={handleSearchSubmit}>
+        <input 
+          type="text" 
+          className="nav-search-input" 
+          placeholder="Search original tech brands & items..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <button type="submit" className="nav-search-btn" aria-label="Search">
+          <i className="ti ti-search" aria-hidden="true"></i>
+        </button>
+      </form>
 
-      {/* Actions */}
-      <div className="nav-actions">
-        {/* Wishlist Link */}
-        <Link 
-          to="/shop" // Can filter wishlist in Shop in future
-          className="nav-icon-btn" 
-          aria-label="Wishlist"
-        >
-          <i className="ti ti-heart" aria-hidden="true"></i>
-          {wishlistCount > 0 && <span className="nav-badge">{wishlistCount}</span>}
-        </Link>
-
-        {/* Cart Link */}
-        <Link 
-          to="/cart" 
-          className="nav-icon-btn" 
-          aria-label="Cart"
-        >
-          <i className="ti ti-shopping-cart" aria-hidden="true"></i>
-          {cartCount > 0 && <span className="nav-badge">{cartCount}</span>}
-        </Link>
-
-        {/* User Account Controls */}
-        {currentUser ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: '#7A6830' }}>
-              Hi, {currentUser.firstName}
-            </span>
-            <button className="btn-login" onClick={handleLogout}>
-              Log out
-            </button>
-          </div>
-        ) : (
-          <>
-            <Link to="/login" className="btn-login" style={{ textDecoration: 'none' }}>
-              Log in
+      {/* Right Side Links & Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+        {/* Nav Links */}
+        <ul className="nav-links" style={{ marginBottom: 0 }}>
+          <li>
+            <Link to="/" className={isHome ? 'active' : ''}>
+              Home
             </Link>
-            <Link to="/signup" className="btn-signup" style={{ textDecoration: 'none' }}>
-              Sign up
+          </li>
+          <li>
+            <Link to="/shop" className={isShop ? 'active' : ''}>
+              Shop Tech
             </Link>
-          </>
-        )}
+          </li>
+          <li>
+            <Link to="/dashboard" className={isDashboard ? 'active' : ''}>
+              Seller Portal
+            </Link>
+          </li>
+        </ul>
+
+        {/* Actions */}
+        <div className="nav-actions">
+          {/* Wishlist Link */}
+          <Link 
+            to="/shop" 
+            className="nav-icon-btn" 
+            aria-label="Wishlist"
+          >
+            <i className="ti ti-heart" aria-hidden="true"></i>
+            {wishlistCount > 0 && <span className="nav-badge">{wishlistCount}</span>}
+          </Link>
+
+          {/* Cart Link */}
+          <Link 
+            to="/cart" 
+            className="nav-icon-btn" 
+            aria-label="Cart"
+          >
+            <i className="ti ti-shopping-cart" aria-hidden="true"></i>
+            {cartCount > 0 && <span className="nav-badge">{cartCount}</span>}
+          </Link>
+
+          {/* User Account Controls */}
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#7A6830' }}>
+                Hi, {currentUser.firstName}
+              </span>
+              <button className="btn-login" onClick={handleLogout}>
+                Log out
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link to="/login" className="btn-login" style={{ textDecoration: 'none' }}>
+                Log in
+              </Link>
+              <Link to="/signup" className="btn-signup" style={{ textDecoration: 'none' }}>
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );

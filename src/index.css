@@ -104,6 +104,56 @@ body, html {
 .nav-links a:hover, .nav-links a.active { 
   color: var(--brand-dark); 
 }
+
+/* Nav Search Bar */
+.nav-search-form {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 460px;
+  margin: 0 24px;
+  background: var(--brand-pale);
+  border: 2.5px solid var(--brand);
+  border-radius: 30px;
+  overflow: hidden;
+  height: 44px;
+  transition: var(--transition);
+}
+.nav-search-form:focus-within {
+  border-color: var(--brand-dark);
+  box-shadow: 0 0 10px rgba(245, 168, 0, 0.22);
+}
+.nav-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0 16px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text-main);
+  outline: none;
+}
+.nav-search-input::placeholder {
+  color: #b89a3e;
+  font-weight: 500;
+}
+.nav-search-btn {
+  background: var(--brand);
+  border: none;
+  color: var(--white);
+  padding: 0 20px;
+  height: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  font-size: 16px;
+}
+.nav-search-btn:hover {
+  background: var(--brand-dark);
+}
+
 .nav-actions { 
   display: flex; 
   gap: 8px; 
