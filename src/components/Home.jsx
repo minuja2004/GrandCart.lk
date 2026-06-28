@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function Home({ 
@@ -9,6 +9,23 @@ export default function Home({
 }) {
   const navigate = useNavigate();
   const trendingProducts = products.slice(0, 6);
+  const [promotions, setPromotions] = useState([]);
+
+  // Load promotions dynamically from database
+  useEffect(() => {
+    const fetchPromotions = async () => {
+      try {
+        const res = await fetch('/api/promotions');
+        if (res.ok) {
+          const data = await res.json();
+          setPromotions(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchPromotions();
+  }, []);
 
   const handleProductClick = (id) => {
     navigate(`/product/${id}`);
@@ -17,6 +34,9 @@ export default function Home({
   const handleCategoryClick = (catName) => {
     navigate(`/shop?category=${catName}`);
   };
+
+  // Duplicate promos for seamless marquee looping
+  const loopPromotions = [...promotions, ...promotions];
 
   return (
     <div className="page active" id="page-home">
@@ -76,7 +96,7 @@ export default function Home({
         </div>
       </div>
 
-      {/* Locomotion Flyer Section */}
+      {/* Dynamic Locomotion Flyer Section */}
       <section className="flyer-section">
         <div className="section-header">
           <div className="section-eyebrow">Limited Time Offers</div>
@@ -84,104 +104,21 @@ export default function Home({
         </div>
         <div className="flyers-outer">
           <div className="flyers-track">
-            {/* Original slides */}
-            <div className="flyer-card f1" onClick={() => handleCategoryClick('Laptops')}>
-              <span className="flyer-icon">💻</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Save Rs. 50,000</span>
-                <div className="flyer-title">Pro Laptops</div>
-                <div className="flyer-sub">MacBooks & ROG Zephyrus</div>
+            {loopPromotions.map((promo, idx) => (
+              <div 
+                key={idx} 
+                className={`flyer-card ${promo.bannerColor || 'f1'}`} 
+                onClick={() => handleCategoryClick(promo.category)}
+                style={{ cursor: 'pointer' }}
+              >
+                <span className="flyer-icon">{promo.icon}</span>
+                <div className="flyer-content">
+                  <span className="flyer-badge">{promo.badge}</span>
+                  <div className="flyer-title">{promo.title}</div>
+                  <div className="flyer-sub">{promo.subtitle}</div>
+                </div>
               </div>
-            </div>
-            <div className="flyer-card f2" onClick={() => handleCategoryClick('Smartphones')}>
-              <span className="flyer-icon">📱</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">New In</span>
-                <div className="flyer-title">Flagships</div>
-                <div className="flyer-sub">iPhone 15 Pro & S24 Ultra</div>
-              </div>
-            </div>
-            <div className="flyer-card f3" onClick={() => handleCategoryClick('Audio')}>
-              <span className="flyer-icon">🎧</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">15% Off</span>
-                <div className="flyer-title">ANC Audio</div>
-                <div className="flyer-sub">Sony XM5 & AirPods Pro</div>
-              </div>
-            </div>
-            <div className="flyer-card f4" onClick={() => handleCategoryClick('Gaming')}>
-              <span className="flyer-icon">🎮</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">In Stock</span>
-                <div className="flyer-title">Gaming Zone</div>
-                <div className="flyer-sub">PS5 Slim & Nintendo OLED</div>
-              </div>
-            </div>
-            <div className="flyer-card f5" onClick={() => handleCategoryClick('Wearables')}>
-              <span className="flyer-icon">⌚</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Free Strap</span>
-                <div className="flyer-title">Smart Watches</div>
-                <div className="flyer-sub">Apple Watch Ultra 2 & Watch 6</div>
-              </div>
-            </div>
-            <div className="flyer-card f6" onClick={() => handleCategoryClick('Accessories')}>
-              <span className="flyer-icon">⌨️</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Hot Pick</span>
-                <div className="flyer-title">Accessories</div>
-                <div className="flyer-sub">Keychron Keyboards & MX Mice</div>
-              </div>
-            </div>
-            {/* Duplicated slides for seamless loop */}
-            <div className="flyer-card f1" onClick={() => handleCategoryClick('Laptops')}>
-              <span className="flyer-icon">💻</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Save Rs. 50,000</span>
-                <div className="flyer-title">Pro Laptops</div>
-                <div className="flyer-sub">MacBooks & ROG Zephyrus</div>
-              </div>
-            </div>
-            <div className="flyer-card f2" onClick={() => handleCategoryClick('Smartphones')}>
-              <span className="flyer-icon">📱</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">New In</span>
-                <div className="flyer-title">Flagships</div>
-                <div className="flyer-sub">iPhone 15 Pro & S24 Ultra</div>
-              </div>
-            </div>
-            <div className="flyer-card f3" onClick={() => handleCategoryClick('Audio')}>
-              <span className="flyer-icon">🎧</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">15% Off</span>
-                <div className="flyer-title">ANC Audio</div>
-                <div className="flyer-sub">Sony XM5 & AirPods Pro</div>
-              </div>
-            </div>
-            <div className="flyer-card f4" onClick={() => handleCategoryClick('Gaming')}>
-              <span className="flyer-icon">🎮</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">In Stock</span>
-                <div className="flyer-title">Gaming Zone</div>
-                <div className="flyer-sub">PS5 Slim & Nintendo OLED</div>
-              </div>
-            </div>
-            <div className="flyer-card f5" onClick={() => handleCategoryClick('Wearables')}>
-              <span className="flyer-icon">⌚</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Free Strap</span>
-                <div className="flyer-title">Smart Watches</div>
-                <div className="flyer-sub">Apple Watch Ultra 2 & Watch 6</div>
-              </div>
-            </div>
-            <div className="flyer-card f6" onClick={() => handleCategoryClick('Accessories')}>
-              <span className="flyer-icon">⌨️</span>
-              <div className="flyer-content">
-                <span className="flyer-badge">Hot Pick</span>
-                <div className="flyer-title">Accessories</div>
-                <div className="flyer-sub">Keychron Keyboards & MX Mice</div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>

@@ -11,6 +11,8 @@ import jwt from 'jsonwebtoken';
 import Product from './models/Product.js';
 import User from './models/User.js';
 import Order from './models/Order.js';
+import Promotion from './models/Promotion.js';
+import ChatMessage from './models/ChatMessage.js';
 
 dotenv.config();
 
@@ -21,16 +23,62 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
+// Token Authenticator Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Access Denied: No Token Provided' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'grandcart-secret-key-2026', (err, user) => {
+    if (err) return res.status(403).json({ message: 'Invalid or Expired Token' });
+    req.user = user;
+    next();
+  });
+};
+
+// MongoDB Connection & Seeding
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected Successfully!');
+    
     // Seed initial products if none exist
-    const count = await Product.countDocuments();
-    if (count === 0) {
+    const prodCount = await Product.countDocuments();
+    if (prodCount === 0) {
       console.log('Product database is empty. Seeding initial tech products...');
-      await Product.insertMany(SEED_PRODUCTS);
+      const seedWithStatus = SEED_PRODUCTS.map(p => ({
+        ...p,
+        status: 'approved',
+        storeName: 'GrandCart Official'
+      }));
+      await Product.insertMany(seedWithStatus);
       console.log('Initial products seeded successfully!');
+    }
+
+    // Seed initial promotions if none exist
+    const promoCount = await Promotion.countDocuments();
+    if (promoCount === 0) {
+      console.log('Promotion database is empty. Seeding initial flyer promotions...');
+      await Promotion.insertMany(SEED_PROMOTIONS);
+      console.log('Initial promotions seeded successfully!');
+    }
+
+    // Seed default administrator if none exist
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    if (adminCount === 0) {
+      console.log('No admin found. Seeding default admin account...');
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash('admin123', salt);
+      const defaultAdmin = new User({
+        firstName: 'System',
+        lastName: 'Admin',
+        email: 'admin@grandcart.lk',
+        phone: '+94 11 234 5678',
+        password: passwordHash,
+        role: 'admin',
+        storeName: 'GrandCart Head Office'
+      });
+      await defaultAdmin.save();
+      console.log('Default admin seeded: admin@grandcart.lk / admin123');
     }
   })
   .catch(err => console.error('MongoDB Connection Error:', err));
@@ -72,20 +120,46 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 // ==========================================
 // 2. PRODUCTS API ROUTES
 // ==========================================
-// Get all products
+// Get all APPROVED products (for customer store catalog)
 app.get('/api/products', async (req, res) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find({ status: 'approved' }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving products.', error });
   }
 });
 
-// Add product
-app.post('/api/products', async (req, res) => {
+// Get seller-scoped products
+app.get('/api/products/seller', authenticateToken, async (req, res) => {
+  try {
+    const products = await Product.find({ sellerId: req.user.id }).sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving seller products.', error });
+  }
+});
+
+// Get all products (for Admin review console)
+app.get('/api/products/admin', authenticateToken, async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving admin products.', error });
+  }
+});
+
+// Add product (Sellers get pending, Admin gets auto-approved)
+app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const { name, brand, category, price, oldPrice, image, stock, description, specs } = req.body;
+    
+    // Determine seller and status details
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User profile not found.' });
+
+    const isAdm = user.role === 'admin';
     
     const newProduct = new Product({
       name,
@@ -96,7 +170,10 @@ app.post('/api/products', async (req, res) => {
       image,
       stock: Number(stock),
       description,
-      specs: specs || {}
+      specs: specs || {},
+      sellerId: user._id,
+      status: isAdm ? 'approved' : 'pending',
+      storeName: user.role === 'seller' ? user.storeName : 'GrandCart Official'
     });
 
     const savedProduct = await newProduct.save();
@@ -106,10 +183,21 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
-// Update product
-app.put('/api/products/:id', async (req, res) => {
+// Update product (re-review if seller edits)
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { name, brand, category, price, oldPrice, image, stock, description, specs } = req.body;
+    const user = await User.findById(req.user.id);
+
+    const isAdm = user && user.role === 'admin';
+
+    // If not admin, verify ownership
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found.' });
+    
+    if (!isAdm && product.sellerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized action on listing.' });
+    }
     
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
@@ -122,14 +210,11 @@ app.put('/api/products/:id', async (req, res) => {
         image,
         stock: Number(stock),
         description,
-        specs
+        specs,
+        status: isAdm ? product.status : 'pending' // Sellers trigger pending re-review
       },
       { new: true }
     );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: 'Product not found.' });
-    }
 
     res.json(updatedProduct);
   } catch (error) {
@@ -137,13 +222,45 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
-// Delete product
-app.delete('/api/products/:id', async (req, res) => {
+// Admin Review Product (Approve/Reject)
+app.put('/api/products/:id/review', authenticateToken, async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-    if (!deletedProduct) {
-      return res.status(404).json({ message: 'Product not found.' });
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Administrators only.' });
     }
+
+    const { status } = req.body; // 'approved' or 'rejected'
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid review status value.' });
+    }
+
+    const reviewedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+
+    if (!reviewedProduct) return res.status(404).json({ message: 'Product not found.' });
+    res.json(reviewedProduct);
+  } catch (error) {
+    res.status(400).json({ message: 'Error reviewing product.', error });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found.' });
+
+    const isAdm = user && user.role === 'admin';
+    if (!isAdm && product.sellerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized action.' });
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
     res.json({ message: 'Product deleted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting product.', error });
@@ -153,18 +270,16 @@ app.delete('/api/products/:id', async (req, res) => {
 // ==========================================
 // 3. AUTH API ROUTES
 // ==========================================
-// User Signup
+// Customer Signup
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
     
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email address already registered.' });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
@@ -173,13 +288,13 @@ app.post('/api/auth/register', async (req, res) => {
       lastName,
       email,
       phone,
-      password: passwordHash
+      password: passwordHash,
+      role: 'customer'
     });
 
     await newUser.save();
 
-    // Create Token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'grandcart-secret-key-2026', { expiresIn: '7d' });
 
     res.status(201).json({
       token,
@@ -188,7 +303,8 @@ app.post('/api/auth/register', async (req, res) => {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
-        phone: newUser.phone
+        phone: newUser.phone,
+        role: newUser.role
       }
     });
   } catch (error) {
@@ -196,14 +312,70 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// User Login
+// Seller Signup
+app.post('/api/auth/seller/register', async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, password, storeName } = req.body;
+    
+    if (!storeName) return res.status(400).json({ message: 'Store Name is required.' });
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email address already registered.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      phone,
+      password: passwordHash,
+      role: 'seller',
+      storeName
+    });
+
+    await newUser.save();
+
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'grandcart-secret-key-2026', { expiresIn: '7d' });
+
+    res.status(201).json({
+      token,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        storeName: newUser.storeName
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error registering seller.', error });
+  }
+});
+
+// General Login (Enforces block checks and role details)
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, requiredRole } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials. User not found.' });
+    }
+
+    // Role gate enforcement (if specified)
+    if (requiredRole && user.role !== requiredRole) {
+      return res.status(403).json({ message: `Access denied. Authorized ${requiredRole}s only.` });
+    }
+
+    // Suspension check
+    if (user.isBlocked) {
+      return res.status(403).json({ message: 'Your account has been suspended by administration.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -211,7 +383,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials. Incorrect password.' });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'grandcart-secret-key-2026', { expiresIn: '7d' });
 
     res.json({
       token,
@@ -220,7 +392,9 @@ app.post('/api/auth/login', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        phone: user.phone
+        phone: user.phone,
+        role: user.role,
+        storeName: user.storeName
       }
     });
   } catch (error) {
@@ -261,13 +435,226 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// Get all orders (for Seller portal)
-app.get('/api/orders', async (req, res) => {
+// Get seller-filtered orders
+app.get('/api/orders/seller', authenticateToken, async (req, res) => {
+  try {
+    // Find all products of this seller
+    const sellerProds = await Product.find({ sellerId: req.user.id });
+    const sellerProdIds = sellerProds.map(p => p._id.toString());
+
+    // Fetch all orders
+    const orders = await Order.find().sort({ createdAt: -1 });
+
+    // Filter order items to only return this seller's products
+    const filteredOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const myItems = orderObj.items.filter(item => sellerProdIds.includes(item.productId.toString()));
+      if (myItems.length > 0) {
+        return {
+          ...orderObj,
+          items: myItems,
+          total: myItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        };
+      }
+      return null;
+    }).filter(o => o !== null);
+
+    res.json(filteredOrders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving seller orders.', error });
+  }
+});
+
+// Get all orders (for Admin portal)
+app.get('/api/orders/admin', authenticateToken, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving orders.', error });
+    res.status(500).json({ message: 'Error retrieving admin orders.', error });
+  }
+});
+
+// ==========================================
+// 5. PROMOTIONS API ROUTES
+// ==========================================
+app.get('/api/promotions', async (req, res) => {
+  try {
+    const promotions = await Promotion.find().sort({ createdAt: -1 });
+    res.json(promotions);
+  } catch (error) {
+    res.status(500).json({ message: 'Error loading promotions.', error });
+  }
+});
+
+app.post('/api/promotions', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    const newPromo = new Promotion(req.body);
+    await newPromo.save();
+    res.status(201).json(newPromo);
+  } catch (error) {
+    res.status(400).json({ message: 'Error saving promotion.', error });
+  }
+});
+
+app.delete('/api/promotions/:id', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    await Promotion.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Promotion deleted.' });
+  } catch (error) {
+    res.status(400).json({ message: 'Error deleting promotion.', error });
+  }
+});
+
+// ==========================================
+// 6. ADMIN USER CONTROLS
+// ==========================================
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    const users = await User.find({ _id: { $ne: req.user.id } }).select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error loading users.', error });
+  }
+});
+
+app.put('/api/admin/users/:id/block', authenticateToken, async (req, res) => {
+  try {
+    const admin = await User.findById(req.user.id);
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    user.isBlocked = !user.isBlocked;
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    res.status(400).json({ message: 'Error toggling user block status.', error });
+  }
+});
+
+// ==========================================
+// 7. CHAT SYSTEM ROUTES
+// ==========================================
+// Send message (block checks)
+app.post('/api/chats/send', authenticateToken, async (req, res) => {
+  try {
+    const { receiverId, message } = req.body;
+    
+    // Check block list between these users
+    const blockedCheck = await ChatMessage.findOne({
+      $or: [
+        { senderId: req.user.id, receiverId, isBlocked: true },
+        { senderId: receiverId, receiverId: req.user.id, isBlocked: true }
+      ]
+    });
+
+    if (blockedCheck) {
+      return res.status(403).json({ message: 'Messaging is suspended for this conversation thread.' });
+    }
+
+    const newMessage = new ChatMessage({
+      senderId: req.user.id,
+      receiverId,
+      message
+    });
+
+    await newMessage.save();
+    res.status(201).json(newMessage);
+  } catch (error) {
+    res.status(400).json({ message: 'Error sending message.', error });
+  }
+});
+
+// Chat history between current user and another
+app.get('/api/chats/history/:otherUserId', authenticateToken, async (req, res) => {
+  try {
+    const messages = await ChatMessage.find({
+      $or: [
+        { senderId: req.user.id, receiverId: req.params.otherUserId },
+        { senderId: req.params.otherUserId, receiverId: req.user.id }
+      ]
+    }).sort({ timestamp: 1 });
+
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving chat history.', error });
+  }
+});
+
+// Get active conversations list
+app.get('/api/chats/conversations', authenticateToken, async (req, res) => {
+  try {
+    const myId = new mongoose.Types.ObjectId(req.user.id);
+    
+    // Aggregate distinct contacts chatted with
+    const messages = await ChatMessage.find({
+      $or: [{ senderId: myId }, { receiverId: myId }]
+    }).sort({ timestamp: -1 });
+
+    const contactIds = new Set();
+    messages.forEach(msg => {
+      if (msg.senderId.toString() !== req.user.id) contactIds.add(msg.senderId.toString());
+      if (msg.receiverId.toString() !== req.user.id) contactIds.add(msg.receiverId.toString());
+    });
+
+    // Populate contacts profile
+    const contacts = await User.find({ _id: { $in: Array.from(contactIds) } }).select('firstName lastName storeName role');
+    res.json(contacts);
+  } catch (error) {
+    res.status(500).json({ message: 'Error loading active chats.', error });
+  }
+});
+
+// Admin chat monitor
+app.get('/api/chats/admin/monitor', authenticateToken, async (req, res) => {
+  try {
+    const admin = await User.findById(req.user.id);
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    // Fetch all messages and populate sender/receiver profiles
+    const messages = await ChatMessage.find()
+      .populate('senderId', 'firstName lastName role email storeName')
+      .populate('receiverId', 'firstName lastName role email storeName')
+      .sort({ timestamp: -1 });
+
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ message: 'Error monitoring chats.', error });
+  }
+});
+
+// Admin toggle block conversation
+app.put('/api/chats/admin/block', authenticateToken, async (req, res) => {
+  try {
+    const admin = await User.findById(req.user.id);
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+
+    const { userA, userB, blockStatus } = req.body; // blockStatus is Boolean
+
+    await ChatMessage.updateMany(
+      {
+        $or: [
+          { senderId: userA, receiverId: userB },
+          { senderId: userB, receiverId: userA }
+        ]
+      },
+      { isBlocked: blockStatus }
+    );
+
+    res.json({ message: blockStatus ? 'Thread blocked successfully.' : 'Thread unblocked successfully.' });
+  } catch (error) {
+    res.status(400).json({ message: 'Error reviewing chat thread status.', error });
   }
 });
 
@@ -279,6 +666,15 @@ app.listen(PORT, () => {
 // ==========================================
 // INITIAL DATABASE SEED PRODUCTS
 // ==========================================
+const SEED_PROMOTIONS = [
+  { title: "Pro Laptops", subtitle: "MacBooks & ROG Zephyrus", badge: "Save Rs. 50,000", icon: "💻", category: "Laptops", bannerColor: "f1" },
+  { title: "Flagships", subtitle: "iPhone 15 Pro & S24 Ultra", badge: "New In", icon: "📱", category: "Smartphones", bannerColor: "f2" },
+  { title: "ANC Audio", subtitle: "Sony XM5 & AirPods Pro", badge: "15% Off", icon: "🎧", category: "Audio", bannerColor: "f3" },
+  { title: "Gaming Zone", subtitle: "PS5 Slim & Nintendo OLED", badge: "In Stock", icon: "🎮", category: "Gaming", bannerColor: "f4" },
+  { title: "Smart Watches", subtitle: "Apple Watch Ultra 2 & Watch 6", badge: "Free Strap", icon: "⌚", category: "Wearables", bannerColor: "f5" },
+  { title: "Accessories", subtitle: "Keychron Keyboards & MX Mice", badge: "Hot Pick", icon: "⌨️", category: "Accessories", bannerColor: "f6" }
+];
+
 const SEED_PRODUCTS = [
   {
     name: "MacBook Pro 14\" M3 Max (16-Core CPU, 40-Core GPU, 48GB RAM, 1TB SSD)",

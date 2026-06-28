@@ -15,6 +15,9 @@ const productSchema = new mongoose.Schema({
   reviews: { type: Number, default: 0 },
   description: { type: String },
   specs: { type: Map, of: String },
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  storeName: { type: String, default: 'GrandCart Official' },
   createdAt: { type: Date, default: Date.now }
 });
 

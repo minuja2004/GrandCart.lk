@@ -7,8 +7,16 @@ export default function Auth({
   addToast 
 }) {
   const navigate = useNavigate();
-  const [isLoginMode, setIsLoginMode] = useState(activePage === 'login');
   
+  // Panel Type Identification
+  const isSellerPortal = activePage.startsWith('seller');
+  const isAdminPortal = activePage.startsWith('admin');
+  const isCustomerPortal = !isSellerPortal && !isAdminPortal;
+
+  const [isLoginMode, setIsLoginMode] = useState(
+    activePage === 'login' || activePage === 'seller-login' || activePage === 'admin-login'
+  );
+
   // Login Form States
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -19,11 +27,14 @@ export default function Auth({
   const [suEmail, setSuEmail] = useState('');
   const [suPhone, setSuPhone] = useState('');
   const [suPass, setSuPass] = useState('');
+  const [suStore, setSuStore] = useState(''); // Only for sellers
   const [suAgree, setSuAgree] = useState(false);
 
   // Sync state with activePage changes
   useEffect(() => {
-    setIsLoginMode(activePage === 'login');
+    setIsLoginMode(
+      activePage === 'login' || activePage === 'seller-login' || activePage === 'admin-login'
+    );
   }, [activePage]);
 
   const handleLoginSubmit = async (e) => {
@@ -32,12 +43,19 @@ export default function Auth({
       addToast('Please enter both email and password!');
       return;
     }
+
+    // Role mapping
+    const requiredRole = isSellerPortal ? 'seller' : (isAdminPortal ? 'admin' : 'customer');
     
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPass })
+        body: JSON.stringify({ 
+          email: loginEmail, 
+          password: loginPass,
+          requiredRole 
+        })
       });
       
       const data = await res.json();
@@ -51,7 +69,15 @@ export default function Auth({
       localStorage.setItem('token', data.token);
       setCurrentUser(data.user);
       addToast(`Logged in successfully! Welcome, ${data.user.firstName}.`);
-      navigate('/');
+      
+      // Redirect based on role
+      if (data.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (data.user.role === 'seller') {
+        navigate('/seller/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error(err);
       addToast('Network error connecting to backend API.');
@@ -64,22 +90,30 @@ export default function Auth({
       addToast('Please fill out all required fields!');
       return;
     }
+    if (isSellerPortal && !suStore) {
+      addToast('Store Name is required to register as a seller!');
+      return;
+    }
     if (!suAgree) {
       addToast('You must agree to the Terms and Conditions!');
       return;
     }
 
+    const signupUrl = isSellerPortal ? '/api/auth/seller/register' : '/api/auth/register';
+    const payload = {
+      firstName: suFirst,
+      lastName: suLast,
+      email: suEmail,
+      phone: suPhone,
+      password: suPass,
+      ...(isSellerPortal ? { storeName: suStore } : {})
+    };
+
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(signupUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: suFirst,
-          lastName: suLast,
-          email: suEmail,
-          phone: suPhone,
-          password: suPass
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
@@ -93,12 +127,26 @@ export default function Auth({
       localStorage.setItem('token', data.token);
       setCurrentUser(data.user);
       addToast('Account created successfully!');
-      navigate('/');
+      
+      if (data.user.role === 'seller') {
+        navigate('/seller/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error(err);
       addToast('Network error connecting to backend API.');
     }
   };
+
+  // Determine Title Text dynamically
+  const formTitle = isLoginMode 
+    ? (isSellerPortal ? 'Seller Sign In' : (isAdminPortal ? 'Admin Console' : 'Sign in')) 
+    : (isSellerPortal ? 'Become a Seller' : 'Create account');
+
+  const formSubtitle = isLoginMode
+    ? (isSellerPortal ? 'Access your store, products, and order logs' : (isAdminPortal ? 'Authenticate to access store management dashboard' : 'Enter your details to continue shopping'))
+    : (isSellerPortal ? 'Register store profile to begin listing items' : "It's free and takes under a minute");
 
   return (
     <div className="page active">
@@ -120,7 +168,27 @@ export default function Auth({
               <path d="M48 44 L56 50 L44 56" fill="none" stroke="#1C1C1C" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             
-            {isLoginMode ? (
+            {isSellerPortal ? (
+              <>
+                <div className="auth-left-title">Seller Hub</div>
+                <div className="auth-left-sub">Set up your e-commerce presence and reach customers island-wide.</div>
+                <ul className="auth-perks">
+                  <li><i className="ti ti-chart-line" aria-hidden="true"></i> Monitor store metrics and revenue</li>
+                  <li><i className="ti ti-box" aria-hidden="true"></i> Upload listings instantly with Cloudinary</li>
+                  <li><i className="ti ti-message" aria-hidden="true"></i> Chat with customers directly</li>
+                </ul>
+              </>
+            ) : isAdminPortal ? (
+              <>
+                <div className="auth-left-title">Management Console</div>
+                <div className="auth-left-sub">Authorized system administrators only. Safeguard server rules.</div>
+                <ul className="auth-perks">
+                  <li><i className="ti ti-checklist" aria-hidden="true"></i> Review and approve listings</li>
+                  <li><i className="ti ti-shield" aria-hidden="true"></i> Monitor customer-seller chats</li>
+                  <li><i className="ti ti-layout" aria-hidden="true"></i> Manage homepage deal flyers</li>
+                </ul>
+              </>
+            ) : (
               <>
                 <div className="auth-left-title">Welcome Back!</div>
                 <div className="auth-left-sub">Log in to access your orders, wishlist, and exclusive deals.</div>
@@ -128,16 +196,6 @@ export default function Auth({
                   <li><i className="ti ti-package" aria-hidden="true"></i> Track your orders in real time</li>
                   <li><i className="ti ti-heart" aria-hidden="true"></i> Save items to your wishlist</li>
                   <li><i className="ti ti-tag" aria-hidden="true"></i> Unlock member-only deals</li>
-                </ul>
-              </>
-            ) : (
-              <>
-                <div className="auth-left-title">Join GrandCart!</div>
-                <div className="auth-left-sub">Create your free account and start shopping from thousands of products across Sri Lanka.</div>
-                <ul className="auth-perks">
-                  <li><i className="ti ti-gift" aria-hidden="true"></i> Welcome offer on first order</li>
-                  <li><i className="ti ti-clock" aria-hidden="true"></i> Fast island-wide delivery</li>
-                  <li><i className="ti ti-shield-check" aria-hidden="true"></i> 100% secure checkout</li>
                 </ul>
               </>
             )}
@@ -148,8 +206,8 @@ export default function Auth({
             {isLoginMode ? (
               // LOGIN FORM
               <form onSubmit={handleLoginSubmit} style={{ width: '100%' }}>
-                <div className="auth-heading">Log in</div>
-                <div className="auth-sub">Enter your details to continue shopping</div>
+                <div className="auth-heading">{formTitle}</div>
+                <div className="auth-sub">{formSubtitle}</div>
                 
                 <div className="form-group">
                   <label className="form-label" htmlFor="l-email">Email address</label>
@@ -167,9 +225,11 @@ export default function Auth({
                 <div className="form-group">
                   <label className="form-label" htmlFor="l-pass">
                     Password 
-                    <a href="#" className="forgot-link" onClick={(e) => { e.preventDefault(); addToast("Reset password link sent to email!"); }}>
-                      Forgot password?
-                    </a>
+                    {!isAdminPortal && (
+                      <a href="#" className="forgot-link" onClick={(e) => { e.preventDefault(); addToast("Password reset link sent!"); }}>
+                        Forgot password?
+                      </a>
+                    )}
                   </label>
                   <input 
                     className="form-input" 
@@ -182,41 +242,25 @@ export default function Auth({
                   />
                 </div>
                 
-                <button type="submit" className="btn-auth">Log in to GrandCart</button>
+                <button type="submit" className="btn-auth">Sign In</button>
                 
-                <div className="auth-divider">
-                  <div className="auth-divider-line"></div>
-                  <div className="auth-divider-text">or continue with</div>
-                  <div className="auth-divider-line"></div>
-                </div>
-                
-                <button 
-                  type="button" 
-                  className="btn-google"
-                  onClick={() => {
-                    setCurrentUser({ firstName: 'GoogleUser', lastName: 'G', email: 'user@google.com' });
-                    addToast('Logged in via Google (Mock)');
-                    navigate('/');
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 48 48">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  Continue with Google
-                </button>
-                
-                <p className="auth-switch">
-                  Don't have an account? <a onClick={() => { setIsLoginMode(false); navigate('/signup'); }}>Sign up free</a>
-                </p>
+                {isCustomerPortal && (
+                  <p className="auth-switch" style={{ marginTop: '16px' }}>
+                    Don't have an account? <a onClick={() => { setIsLoginMode(false); navigate('/signup'); }}>Sign up free</a>
+                  </p>
+                )}
+
+                {isSellerPortal && (
+                  <p className="auth-switch" style={{ marginTop: '16px' }}>
+                    Want to sell with us? <a onClick={() => { setIsLoginMode(false); navigate('/seller/signup'); }}>Register store</a>
+                  </p>
+                )}
               </form>
             ) : (
-              // SIGNUP FORM
+              // SIGNUP FORM (Only for Customer & Seller)
               <form onSubmit={handleSignupSubmit} style={{ width: '100%' }}>
-                <div className="auth-heading">Create account</div>
-                <div className="auth-sub">It's free and takes under a minute</div>
+                <div className="auth-heading">{formTitle}</div>
+                <div className="auth-sub">{formSubtitle}</div>
                 
                 <div className="form-row form-row-mb">
                   <div className="form-group">
@@ -225,7 +269,6 @@ export default function Auth({
                       className="form-input" 
                       type="text" 
                       id="su-first" 
-                      placeholder="Kamal"
                       value={suFirst}
                       onChange={(e) => setSuFirst(e.target.value)}
                       required
@@ -237,13 +280,27 @@ export default function Auth({
                       className="form-input" 
                       type="text" 
                       id="su-last" 
-                      placeholder="Perera"
                       value={suLast}
                       onChange={(e) => setSuLast(e.target.value)}
                       required
                     />
                   </div>
                 </div>
+
+                {isSellerPortal && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="su-store">Store Name *</label>
+                    <input 
+                      className="form-input" 
+                      type="text" 
+                      id="su-store" 
+                      placeholder="e.g. Abans Tech Store"
+                      value={suStore}
+                      onChange={(e) => setSuStore(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="su-email">Email address</label>
@@ -269,7 +326,6 @@ export default function Auth({
                     onChange={(e) => setSuPhone(e.target.value)}
                     required
                   />
-                  <div className="form-hint">For order updates and delivery notifications</div>
                 </div>
 
                 <div className="form-group">
@@ -293,38 +349,20 @@ export default function Auth({
                     onChange={(e) => setSuAgree(e.target.checked)}
                     required
                   />
-                  <label htmlFor="su-agree">I agree to the <a href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a></label>
+                  <label htmlFor="su-agree">I agree to the Terms of Service and Privacy Policy</label>
                 </div>
 
-                <button type="submit" className="btn-auth">Create my account</button>
+                <button type="submit" className="btn-auth">Register Profile</button>
 
-                <div className="auth-divider">
-                  <div className="auth-divider-line"></div>
-                  <div className="auth-divider-text">or sign up with</div>
-                  <div className="auth-divider-line"></div>
-                </div>
-
-                <button 
-                  type="button" 
-                  className="btn-google"
-                  onClick={() => {
-                    setCurrentUser({ firstName: 'GoogleUser', lastName: 'G', email: 'user@google.com' });
-                    addToast('Signed up via Google (Mock)');
-                    navigate('/');
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 48 48">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  Sign up with Google
-                </button>
-
-                <p className="auth-switch">
-                  Already have an account? <a onClick={() => { setIsLoginMode(true); navigate('/login'); }}>Log in</a>
-                </p>
+                {isCustomerPortal ? (
+                  <p className="auth-switch" style={{ marginTop: '16px' }}>
+                    Already have an account? <a onClick={() => { setIsLoginMode(true); navigate('/login'); }}>Log in</a>
+                  </p>
+                ) : (
+                  <p className="auth-switch" style={{ marginTop: '16px' }}>
+                    Already registered store? <a onClick={() => { setIsLoginMode(true); navigate('/seller/login'); }}>Sign in</a>
+                  </p>
+                )}
               </form>
             )}
           </div>

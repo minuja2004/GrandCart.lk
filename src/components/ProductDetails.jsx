@@ -5,7 +5,10 @@ export default function ProductDetails({
   products, 
   addToCart, 
   toggleWishlist, 
-  wishlist 
+  wishlist,
+  currentUser,
+  setActiveRecipient,
+  addToast
 }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,6 +44,24 @@ export default function ProductDetails({
     } else if (type === 'inc' && quantity < product.stock) {
       setQuantity(quantity + 1);
     }
+  };
+
+  const handleStartChat = () => {
+    if (!currentUser) {
+      addToast('Please log in to chat with the seller!');
+      navigate('/login');
+      return;
+    }
+    if (currentUser.role !== 'customer') {
+      addToast('Sellers or Admins cannot open customer chat threads.');
+      return;
+    }
+    
+    // Set active recipient for ChatWidget overlay
+    setActiveRecipient({
+      id: product.sellerId || 'admin_fallback_id', 
+      storeName: product.storeName || 'GrandCart Official'
+    });
   };
 
   const isWishlisted = wishlist.includes(product._id);
@@ -109,24 +130,29 @@ export default function ProductDetails({
               )}
             </div>
 
-            <div className="stock-status">
-              Stock Status: 
-              {product.stock > 0 ? (
-                <span className="stock-status stock-instock" style={{ marginBottom: 0 }}>
-                  <i className="ti ti-circle-check" aria-hidden="true"></i> {product.stock} Units In Stock
-                </span>
-              ) : (
-                <span className="stock-status stock-out" style={{ marginBottom: 0 }}>
-                  <i className="ti ti-circle-x" aria-hidden="true"></i> Out of Stock
-                </span>
-              )}
+            <div className="stock-status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                Stock Status: 
+                {product.stock > 0 ? (
+                  <span className="stock-status stock-instock" style={{ marginBottom: 0, display: 'inline-block', marginLeft: '6px' }}>
+                    <i className="ti ti-circle-check" aria-hidden="true"></i> {product.stock} Units In Stock
+                  </span>
+                ) : (
+                  <span className="stock-status stock-out" style={{ marginBottom: 0, display: 'inline-block', marginLeft: '6px' }}>
+                    <i className="ti ti-circle-x" aria-hidden="true"></i> Out of Stock
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#666', background: 'var(--brand-bg)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-gold)', fontWeight: '700' }}>
+                Store: {product.storeName}
+              </div>
             </div>
 
             <p className="detail-desc">{product.description}</p>
 
             {/* Qty & Add to Cart Controls */}
             {product.stock > 0 && (
-              <div className="controls-row">
+              <div className="controls-row" style={{ flexWrap: 'wrap', gap: '12px' }}>
                 <div className="qty-box">
                   <button className="qty-btn" onClick={() => handleQtyChange('dec')}>-</button>
                   <input 
@@ -152,6 +178,15 @@ export default function ProductDetails({
                   aria-label="Wishlist"
                 >
                   <i className={isWishlisted ? 'ti ti-heart-filled' : 'ti ti-heart'} aria-hidden="true"></i>
+                </button>
+
+                {/* Chat with Seller Button */}
+                <button 
+                  className="btn-login"
+                  style={{ height: '48px', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onClick={handleStartChat}
+                >
+                  <i className="ti ti-message-2" style={{ fontSize: '18px' }}></i> Chat with Seller
                 </button>
               </div>
             )}

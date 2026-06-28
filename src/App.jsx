@@ -7,7 +7,10 @@ import ProductDetails from './components/ProductDetails';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import Auth from './components/Auth';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/Dashboard'; // Old dashboard (unused, but kept to avoid compilation break)
+import SellerDashboard from './components/SellerDashboard';
+import AdminDashboard from './components/AdminDashboard';
+import ChatWidget from './components/ChatWidget';
 
 export default function App() {
   const [products, setProducts] = useState([]);
@@ -20,6 +23,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [coupon, setCoupon] = useState(null);
   const [toasts, setToasts] = useState([]);
+
+  // Customer Chat State
+  const [activeRecipient, setActiveRecipient] = useState(null);
 
   // Fetch Products from Express API
   const fetchProducts = async () => {
@@ -161,6 +167,9 @@ export default function App() {
                 addToCart={addToCart}
                 toggleWishlist={toggleWishlist}
                 wishlist={wishlist}
+                currentUser={currentUser}
+                setActiveRecipient={setActiveRecipient}
+                addToast={addToast}
               />
             } 
           />
@@ -191,6 +200,7 @@ export default function App() {
             } 
           />
           
+          {/* Customer Auth */}
           <Route 
             path="/login" 
             element={
@@ -212,7 +222,63 @@ export default function App() {
               />
             } 
           />
+
+          {/* Seller Portal */}
+          <Route 
+            path="/seller/login" 
+            element={
+              <Auth 
+                activePage="seller-login"
+                setCurrentUser={setCurrentUser}
+                addToast={addToast}
+              />
+            } 
+          />
           
+          <Route 
+            path="/seller/signup" 
+            element={
+              <Auth 
+                activePage="seller-signup"
+                setCurrentUser={setCurrentUser}
+                addToast={addToast}
+              />
+            } 
+          />
+
+          <Route 
+            path="/seller/dashboard" 
+            element={
+              <SellerDashboard 
+                currentUser={currentUser}
+                addToast={addToast}
+              />
+            } 
+          />
+
+          {/* Admin Console */}
+          <Route 
+            path="/admin/login" 
+            element={
+              <Auth 
+                activePage="admin-login"
+                setCurrentUser={setCurrentUser}
+                addToast={addToast}
+              />
+            } 
+          />
+
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <AdminDashboard 
+                currentUser={currentUser}
+                addToast={addToast}
+              />
+            } 
+          />
+
+          {/* Fallback to legacy dashboard */}
           <Route 
             path="/dashboard" 
             element={
@@ -226,6 +292,13 @@ export default function App() {
           />
         </Routes>
       </div>
+
+      {/* Floating Chat Box Overlay */}
+      <ChatWidget 
+        currentUser={currentUser} 
+        activeRecipient={activeRecipient} 
+        setActiveRecipient={setActiveRecipient} 
+      />
 
       {/* Toast Notifications */}
       <div className="toast-container">
