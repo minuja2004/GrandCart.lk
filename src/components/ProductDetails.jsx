@@ -158,14 +158,14 @@ export default function ProductDetails({
             <div className="welcome-deal-banner">
               <span className="welcome-deal-badge">Welcome Deal</span>
               <div className="deal-price-row">
-                <span className="deal-price">Rs. {product.price.toLocaleString()}</span>
+                <span className="deal-price">LKR {product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 {product.oldPrice && (
-                  <span className="deal-price-old">Rs. {product.oldPrice.toLocaleString()}</span>
+                  <span className="deal-price-old">LKR {product.oldPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 )}
               </div>
               {product.oldPrice && (
                 <div className="deal-saving-text">
-                  New shopper price! You save Rs. {(product.oldPrice - product.price).toLocaleString()} (50% Off)
+                  New shopper price! You save LKR {(product.oldPrice - product.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (50% Off)
                 </div>
               )}
             </div>
@@ -358,9 +358,9 @@ export default function ProductDetails({
                     </div>
                     <div className="product-footer">
                       <div className="price-container">
-                        <span className="product-price">Rs. {p.price.toLocaleString()}</span>
+                        <span className="product-price">LKR {p.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         {p.oldPrice && (
-                          <span className="product-price-old">Rs. {p.oldPrice.toLocaleString()}</span>
+                          <span className="product-price-old">LKR {p.oldPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         )}
                       </div>
                       <button 
