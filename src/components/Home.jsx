@@ -1,25 +1,21 @@
 import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function Home({ 
   products, 
-  setActivePage, 
-  setSelectedProductId, 
   addToCart, 
   toggleWishlist, 
-  wishlist,
-  setSelectedCategory
+  wishlist
 }) {
-  // Get first 6 products for trending section
+  const navigate = useNavigate();
   const trendingProducts = products.slice(0, 6);
 
   const handleProductClick = (id) => {
-    setSelectedProductId(id);
-    setActivePage('details');
+    navigate(`/product/${id}`);
   };
 
   const handleCategoryClick = (catName) => {
-    setSelectedCategory(catName);
-    setActivePage('shop');
+    navigate(`/shop?category=${catName}`);
   };
 
   return (
@@ -35,16 +31,15 @@ export default function Home({
             Thousands of premium tech products delivered island-wide. Quality you can trust, prices you'll love.
           </p>
           <div className="hero-btns">
-            <button className="btn-hero-white" onClick={() => setActivePage('shop')}>
+            <Link to="/shop" className="btn-hero-white" style={{ textDecoration: 'none' }}>
               Shop Tech Now
-            </button>
-            <button className="btn-hero-outline" onClick={() => setActivePage('shop')}>
+            </Link>
+            <Link to="/shop" className="btn-hero-outline" style={{ textDecoration: 'none' }}>
               View Deals
-            </button>
+            </Link>
           </div>
         </div>
         <div className="hero-right">
-          {/* Dynamic Vector Logo in Hero */}
           <svg 
             className="hero-logo-big"
             width="180" 
@@ -234,10 +229,10 @@ export default function Home({
           </div>
           <div className="products-grid">
             {trendingProducts.map((p) => {
-              const isWishlisted = wishlist.includes(p.id);
+              const isWishlisted = wishlist.includes(p._id);
               return (
-                <div key={p.id} className="product-card">
-                  <div className="product-img-container" onClick={() => handleProductClick(p.id)}>
+                <div key={p._id} className="product-card">
+                  <div className="product-img-container" onClick={() => handleProductClick(p._id)}>
                     <span className="badge-pos">
                       {p.badgeType === 'sale' ? (
                         <span className="badge-sale">{p.badge}</span>
@@ -250,20 +245,29 @@ export default function Home({
                       className={`btn-wishlist-card ${isWishlisted ? 'active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleWishlist(p.id);
+                        toggleWishlist(p._id);
                       }}
                       aria-label="Wishlist"
                     >
                       <i className={isWishlisted ? 'ti ti-heart-filled' : 'ti ti-heart'} aria-hidden="true"></i>
                     </button>
-                    {p.image}
+                    
+                    {p.image.startsWith('http') ? (
+                      <img 
+                        src={p.image} 
+                        alt={p.name} 
+                        style={{ width: '80%', height: '80%', objectFit: 'contain' }} 
+                      />
+                    ) : (
+                      p.image
+                    )}
                   </div>
                   <div className="product-info">
-                    <div className="product-brand" onClick={() => handleProductClick(p.id)}>{p.brand}</div>
-                    <div className="stars" onClick={() => handleProductClick(p.id)}>{p.stars}</div>
+                    <div className="product-brand" onClick={() => handleProductClick(p._id)}>{p.brand}</div>
+                    <div className="stars" onClick={() => handleProductClick(p._id)}>{p.stars}</div>
                     <div 
                       className="product-name" 
-                      onClick={() => handleProductClick(p.id)}
+                      onClick={() => handleProductClick(p._id)}
                       style={{ cursor: 'pointer' }}
                     >
                       {p.name.length > 50 ? p.name.substring(0, 50) + '...' : p.name}
@@ -292,9 +296,9 @@ export default function Home({
             })}
           </div>
           <div style={{ textAlign: 'center', marginTop: '36px' }}>
-            <button className="btn-shop-now" onClick={() => handleCategoryClick('All')}>
+            <Link to="/shop" className="btn-shop-now" style={{ textDecoration: 'none' }}>
               View All Tech Gear
-            </button>
+            </Link>
           </div>
         </div>
       </section>

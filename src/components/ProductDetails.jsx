@@ -1,27 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
 export default function ProductDetails({ 
   products, 
-  selectedProductId, 
-  setActivePage, 
   addToCart, 
   toggleWishlist, 
   wishlist 
 }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [activeThumb, setActiveThumb] = useState(0);
 
-  // Find product by id
-  const product = products.find(p => p.id === selectedProductId) || products[0];
+  // Find product by MongoDB _id or fallback
+  const product = products.find(p => p._id === id);
 
   // Reset page scroll and quantity state when product changes
   useEffect(() => {
     window.scrollTo(0, 0);
     setQuantity(1);
     setActiveThumb(0);
-  }, [selectedProductId]);
+  }, [id]);
 
-  if (!product) return <div className="details-wrap">Product not found.</div>;
+  if (!product) {
+    return (
+      <div className="page active">
+        <div className="details-wrap" style={{ textAlign: 'center', padding: '40px' }}>
+          <h2>Product not found.</h2>
+          <button className="btn-shop-now" style={{ marginTop: '20px' }} onClick={() => navigate('/shop')}>
+            Back to Shop
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleQtyChange = (type) => {
     if (type === 'dec' && quantity > 1) {
@@ -31,12 +43,12 @@ export default function ProductDetails({
     }
   };
 
-  const isWishlisted = wishlist.includes(product.id);
+  const isWishlisted = wishlist.includes(product._id);
 
   // Mock thumbnails based on product category
   const thumbs = [
     product.image,
-    product.category === 'Laptops' ? '🖥️' : product.category === 'Smartphones' ? '📞' : '⚙️',
+    product.category === 'Laptops' ? '🖥' : product.category === 'Smartphones' ? '📞' : '⚙️',
     product.category === 'Laptops' ? '⌨️' : product.category === 'Smartphones' ? '🔋' : '🔌'
   ];
 
@@ -44,7 +56,7 @@ export default function ProductDetails({
     <div className="page active">
       <div className="details-wrap">
         {/* Back Link */}
-        <span className="back-btn" onClick={() => setActivePage('shop')}>
+        <span className="back-btn" onClick={() => navigate('/shop')}>
           <i className="ti ti-arrow-left" aria-hidden="true"></i> Back to Shop Catalog
         </span>
 
@@ -53,7 +65,15 @@ export default function ProductDetails({
           {/* Gallery View */}
           <div className="details-gallery">
             <div className="main-img-box">
-              {thumbs[activeThumb]}
+              {thumbs[activeThumb].startsWith('http') ? (
+                <img 
+                  src={thumbs[activeThumb]} 
+                  alt="" 
+                  style={{ width: '80%', height: '80%', objectFit: 'contain' }} 
+                />
+              ) : (
+                thumbs[activeThumb]
+              )}
             </div>
             <div className="thumbnail-row">
               {thumbs.map((thumb, idx) => (
@@ -62,7 +82,11 @@ export default function ProductDetails({
                   className={`thumb-box ${activeThumb === idx ? 'active' : ''}`}
                   onClick={() => setActiveThumb(idx)}
                 >
-                  {thumb}
+                  {thumb.startsWith('http') ? (
+                    <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    thumb
+                  )}
                 </div>
               ))}
             </div>
@@ -124,7 +148,7 @@ export default function ProductDetails({
 
                 <button 
                   className={`btn-detail-wishlist ${isWishlisted ? 'active' : ''}`}
-                  onClick={() => toggleWishlist(product.id)}
+                  onClick={() => toggleWishlist(product._id)}
                   aria-label="Wishlist"
                 >
                   <i className={isWishlisted ? 'ti ti-heart-filled' : 'ti ti-heart'} aria-hidden="true"></i>
@@ -137,7 +161,7 @@ export default function ProductDetails({
               <h2 className="specs-title">Technical Specifications</h2>
               <table className="specs-table">
                 <tbody>
-                  {Object.entries(product.specs).map(([key, val]) => (
+                  {product.specs && Object.entries(product.specs).map(([key, val]) => (
                     <tr key={key}>
                       <td className="specs-key">{key}</td>
                       <td className="specs-val">{val}</td>

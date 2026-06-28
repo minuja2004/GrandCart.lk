@@ -1,24 +1,28 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export default function Navbar({ 
-  activePage, 
-  setActivePage, 
   cartCount, 
   wishlistCount, 
   currentUser, 
   setCurrentUser 
 }) {
-  const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     setCurrentUser(null);
-    setActivePage('home');
+    navigate('/');
   };
+
+  const isHome = location.pathname === '/';
+  const isShop = location.pathname.startsWith('/shop');
+  const isDashboard = location.pathname === '/dashboard';
 
   return (
     <nav className="nav">
-      {/* Dynamic Vector Logo - High Sharpness, Zero External Dependencies */}
-      <div className="nav-logo-wrap" onClick={() => setActivePage('home')}>
+      {/* Brand Logo Link */}
+      <Link to="/" className="nav-logo-wrap" style={{ textDecoration: 'none' }}>
         <svg 
           width="42" 
           height="42" 
@@ -35,57 +39,48 @@ export default function Navbar({
           Grand<span style={{ color: '#F5A800' }}>Cart</span>
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#BBB', marginLeft: '2px' }}>.lk</span>
         </span>
-      </div>
+      </Link>
 
       {/* Nav Links */}
       <ul className="nav-links">
         <li>
-          <a 
-            className={activePage === 'home' ? 'active' : ''} 
-            onClick={() => setActivePage('home')}
-          >
+          <Link to="/" className={isHome ? 'active' : ''}>
             Home
-          </a>
+          </Link>
         </li>
         <li>
-          <a 
-            className={activePage === 'shop' ? 'active' : ''} 
-            onClick={() => setActivePage('shop')}
-          >
+          <Link to="/shop" className={isShop ? 'active' : ''}>
             Shop Tech
-          </a>
+          </Link>
         </li>
         <li>
-          <a 
-            className={activePage === 'dashboard' ? 'active' : ''} 
-            onClick={() => setActivePage('dashboard')}
-          >
+          <Link to="/dashboard" className={isDashboard ? 'active' : ''}>
             Seller Portal
-          </a>
+          </Link>
         </li>
       </ul>
 
       {/* Actions */}
       <div className="nav-actions">
-        {/* Wishlist Button with Badge */}
-        <button 
+        {/* Wishlist Link */}
+        <Link 
+          to="/shop" // Can filter wishlist in Shop in future
           className="nav-icon-btn" 
           aria-label="Wishlist"
-          onClick={() => setActivePage('shop')} // Shop will let them filter or view liked items
         >
           <i className="ti ti-heart" aria-hidden="true"></i>
           {wishlistCount > 0 && <span className="nav-badge">{wishlistCount}</span>}
-        </button>
+        </Link>
 
-        {/* Cart Button with Badge */}
-        <button 
+        {/* Cart Link */}
+        <Link 
+          to="/cart" 
           className="nav-icon-btn" 
           aria-label="Cart"
-          onClick={() => setActivePage('cart')}
         >
           <i className="ti ti-shopping-cart" aria-hidden="true"></i>
           {cartCount > 0 && <span className="nav-badge">{cartCount}</span>}
-        </button>
+        </Link>
 
         {/* User Account Controls */}
         {currentUser ? (
@@ -99,12 +94,12 @@ export default function Navbar({
           </div>
         ) : (
           <>
-            <button className="btn-login" onClick={() => setActivePage('login')}>
+            <Link to="/login" className="btn-login" style={{ textDecoration: 'none' }}>
               Log in
-            </button>
-            <button className="btn-signup" onClick={() => setActivePage('signup')}>
+            </Link>
+            <Link to="/signup" className="btn-signup" style={{ textDecoration: 'none' }}>
               Sign up
-            </button>
+            </Link>
           </>
         )}
       </div>

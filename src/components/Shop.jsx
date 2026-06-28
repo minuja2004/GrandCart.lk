@@ -1,21 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function Shop({ 
   products, 
-  setActivePage, 
-  setSelectedProductId, 
   addToCart, 
   toggleWishlist, 
-  wishlist,
-  selectedCategory,
-  setSelectedCategory
+  wishlist
 }) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Category URL parameter sync
+  const selectedCategory = searchParams.get('category') || 'All';
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [maxPrice, setMaxPrice] = useState(1000000);
   const [sortBy, setSortBy] = useState('popular');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyOnSale, setOnlyOnSale] = useState(false);
+
+  // Set category in URL params
+  const setSelectedCategory = (cat) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (cat === 'All') {
+      newParams.delete('category');
+    } else {
+      newParams.set('category', cat);
+    }
+    setSearchParams(newParams);
+  };
 
   // Available brands in tech products
   const brands = useMemo(() => {
@@ -95,8 +109,7 @@ export default function Shop({
   }, [products, searchTerm, selectedCategory, selectedBrands, maxPrice, onlyInStock, onlyOnSale, sortBy]);
 
   const handleProductClick = (id) => {
-    setSelectedProductId(id);
-    setActivePage('details');
+    navigate(`/product/${id}`);
   };
 
   return (
@@ -233,10 +246,10 @@ export default function Shop({
           {processedProducts.length > 0 ? (
             <div className="products-grid">
               {processedProducts.map((p) => {
-                const isWishlisted = wishlist.includes(p.id);
+                const isWishlisted = wishlist.includes(p._id);
                 return (
-                  <div key={p.id} className="product-card">
-                    <div className="product-img-container" onClick={() => handleProductClick(p.id)}>
+                  <div key={p._id} className="product-card">
+                    <div className="product-img-container" onClick={() => handleProductClick(p._id)}>
                       <span className="badge-pos">
                         {p.badgeType === 'sale' ? (
                           <span className="badge-sale">{p.badge}</span>
@@ -249,20 +262,29 @@ export default function Shop({
                         className={`btn-wishlist-card ${isWishlisted ? 'active' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleWishlist(p.id);
+                          toggleWishlist(p._id);
                         }}
                         aria-label="Wishlist"
                       >
                         <i className={isWishlisted ? 'ti ti-heart-filled' : 'ti ti-heart'} aria-hidden="true"></i>
                       </button>
-                      {p.image}
+                      
+                      {p.image.startsWith('http') ? (
+                        <img 
+                          src={p.image} 
+                          alt={p.name} 
+                          style={{ width: '80%', height: '80%', objectFit: 'contain' }} 
+                        />
+                      ) : (
+                        p.image
+                      )}
                     </div>
                     <div className="product-info">
-                      <div className="product-brand" onClick={() => handleProductClick(p.id)}>{p.brand}</div>
-                      <div className="stars" onClick={() => handleProductClick(p.id)}>{p.stars}</div>
+                      <div className="product-brand" onClick={() => handleProductClick(p._id)}>{p.brand}</div>
+                      <div className="stars" onClick={() => handleProductClick(p._id)}>{p.stars}</div>
                       <div 
                         className="product-name" 
-                        onClick={() => handleProductClick(p.id)}
+                        onClick={() => handleProductClick(p._id)}
                         style={{ cursor: 'pointer' }}
                       >
                         {p.name.length > 65 ? p.name.substring(0, 65) + '...' : p.name}

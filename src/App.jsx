@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import Shop from './components/Shop';
@@ -9,16 +10,13 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 
 export default function App() {
-  const [activePage, setActivePage] = useState('home');
   const [products, setProducts] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('All');
   
   // Cart & Wishlist State
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   
-  // Auth & Checkout State
+  // Auth State
   const [currentUser, setCurrentUser] = useState(null);
   const [coupon, setCoupon] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -122,91 +120,111 @@ export default function App() {
     <div id="app-root">
       {/* Navbar */}
       <Navbar 
-        activePage={activePage} 
-        setActivePage={setActivePage} 
         cartCount={cartCount} 
         wishlistCount={wishlist.length} 
         currentUser={currentUser} 
         setCurrentUser={setCurrentUser} 
       />
 
-      {/* Pages Container */}
+      {/* Pages Router */}
       <div className="main-content-pages">
-        {activePage === 'home' && (
-          <Home 
-            products={products}
-            setActivePage={setActivePage}
-            setSelectedProductId={setSelectedProductId}
-            addToCart={addToCart}
-            toggleWishlist={toggleWishlist}
-            wishlist={wishlist}
-            setSelectedCategory={setSelectedCategory}
+        <Routes>
+          <Route 
+            path="/" 
+            element={
+              <Home 
+                products={products}
+                addToCart={addToCart}
+                toggleWishlist={toggleWishlist}
+                wishlist={wishlist}
+              />
+            } 
           />
-        )}
-
-        {activePage === 'shop' && (
-          <Shop 
-            products={products}
-            setActivePage={setActivePage}
-            setSelectedProductId={setSelectedProductId}
-            addToCart={addToCart}
-            toggleWishlist={toggleWishlist}
-            wishlist={wishlist}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
+          
+          <Route 
+            path="/shop" 
+            element={
+              <Shop 
+                products={products}
+                addToCart={addToCart}
+                toggleWishlist={toggleWishlist}
+                wishlist={wishlist}
+              />
+            } 
           />
-        )}
-
-        {activePage === 'details' && (
-          <ProductDetails 
-            products={products}
-            selectedProductId={selectedProductId}
-            setActivePage={setActivePage}
-            addToCart={addToCart}
-            toggleWishlist={toggleWishlist}
-            wishlist={wishlist}
+          
+          <Route 
+            path="/product/:id" 
+            element={
+              <ProductDetails 
+                products={products}
+                addToCart={addToCart}
+                toggleWishlist={toggleWishlist}
+                wishlist={wishlist}
+              />
+            } 
           />
-        )}
-
-        {activePage === 'cart' && (
-          <Cart 
-            cart={cart}
-            updateCartQty={updateCartQty}
-            removeFromCart={removeFromCart}
-            setActivePage={setActivePage}
-            coupon={coupon}
-            setCoupon={setCoupon}
-            addToast={addToast}
+          
+          <Route 
+            path="/cart" 
+            element={
+              <Cart 
+                cart={cart}
+                updateCartQty={updateCartQty}
+                removeFromCart={removeFromCart}
+                coupon={coupon}
+                setCoupon={setCoupon}
+                addToast={addToast}
+              />
+            } 
           />
-        )}
-
-        {activePage === 'checkout' && (
-          <Checkout 
-            cart={cart}
-            clearCart={clearCart}
-            setActivePage={setActivePage}
-            coupon={coupon}
-            addToast={addToast}
+          
+          <Route 
+            path="/checkout" 
+            element={
+              <Checkout 
+                cart={cart}
+                clearCart={clearCart}
+                coupon={coupon}
+                addToast={addToast}
+              />
+            } 
           />
-        )}
-
-        {(activePage === 'login' || activePage === 'signup') && (
-          <Auth 
-            activePage={activePage}
-            setActivePage={setActivePage}
-            setCurrentUser={setCurrentUser}
-            addToast={addToast}
+          
+          <Route 
+            path="/login" 
+            element={
+              <Auth 
+                activePage="login"
+                setCurrentUser={setCurrentUser}
+                addToast={addToast}
+              />
+            } 
           />
-        )}
-
-        {activePage === 'dashboard' && (
-          <Dashboard 
-            products={products}
-            setProducts={setProducts}
-            addToast={addToast}
-            fetchProducts={fetchProducts}
+          
+          <Route 
+            path="/signup" 
+            element={
+              <Auth 
+                activePage="signup"
+                setCurrentUser={setCurrentUser}
+                addToast={addToast}
+              />
+            } 
           />
-        )}
+          
+          <Route 
+            path="/dashboard" 
+            element={
+              <Dashboard 
+                products={products}
+                setProducts={setProducts}
+                addToast={addToast}
+                fetchProducts={fetchProducts}
+              />
+            } 
+          />
+        </Routes>
       </div>
 
       {/* Toast Notifications */}

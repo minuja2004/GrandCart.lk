@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Checkout({ 
   cart, 
   clearCart, 
-  setActivePage, 
   coupon, 
   addToast 
 }) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -137,7 +138,7 @@ export default function Checkout({
               </div>
             </div>
 
-            <button className="btn-shop-now" onClick={() => setActivePage('home')}>
+            <button className="btn-shop-now" onClick={() => navigate('/')}>
               Continue Shopping
             </button>
           </div>

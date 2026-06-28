@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Auth({ 
   activePage, 
-  setActivePage, 
   setCurrentUser, 
   addToast 
 }) {
+  const navigate = useNavigate();
   const [isLoginMode, setIsLoginMode] = useState(activePage === 'login');
   
   // Login Form States
@@ -50,7 +51,7 @@ export default function Auth({
       localStorage.setItem('token', data.token);
       setCurrentUser(data.user);
       addToast(`Logged in successfully! Welcome, ${data.user.firstName}.`);
-      setActivePage('home');
+      navigate('/');
     } catch (err) {
       console.error(err);
       addToast('Network error connecting to backend API.');
@@ -92,7 +93,7 @@ export default function Auth({
       localStorage.setItem('token', data.token);
       setCurrentUser(data.user);
       addToast('Account created successfully!');
-      setActivePage('home');
+      navigate('/');
     } catch (err) {
       console.error(err);
       addToast('Network error connecting to backend API.');
@@ -195,7 +196,7 @@ export default function Auth({
                   onClick={() => {
                     setCurrentUser({ firstName: 'GoogleUser', lastName: 'G', email: 'user@google.com' });
                     addToast('Logged in via Google (Mock)');
-                    setActivePage('home');
+                    navigate('/');
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 48 48">
@@ -208,7 +209,7 @@ export default function Auth({
                 </button>
                 
                 <p className="auth-switch">
-                  Don't have an account? <a onClick={() => { setIsLoginMode(false); setActivePage('signup'); }}>Sign up free</a>
+                  Don't have an account? <a onClick={() => { setIsLoginMode(false); navigate('/signup'); }}>Sign up free</a>
                 </p>
               </form>
             ) : (
@@ -309,7 +310,7 @@ export default function Auth({
                   onClick={() => {
                     setCurrentUser({ firstName: 'GoogleUser', lastName: 'G', email: 'user@google.com' });
                     addToast('Signed up via Google (Mock)');
-                    setActivePage('home');
+                    navigate('/');
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 48 48">
@@ -322,7 +323,7 @@ export default function Auth({
                 </button>
 
                 <p className="auth-switch">
-                  Already have an account? <a onClick={() => { setIsLoginMode(true); setActivePage('login'); }}>Log in</a>
+                  Already have an account? <a onClick={() => { setIsLoginMode(true); navigate('/login'); }}>Log in</a>
                 </p>
               </form>
             )}

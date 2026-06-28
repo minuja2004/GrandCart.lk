@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Cart({ 
   cart, 
   updateCartQty, 
   removeFromCart, 
-  setActivePage,
-  coupon,
+  coupon, 
   setCoupon,
   addToast
 }) {
+  const navigate = useNavigate();
   const [couponInput, setCouponInput] = useState('');
 
   // Calculations
@@ -31,7 +32,7 @@ export default function Cart({
   };
 
   const handleCheckoutClick = () => {
-    setActivePage('checkout');
+    navigate('/checkout');
   };
 
   return (
@@ -44,7 +45,7 @@ export default function Cart({
             <div className="empty-cart-icon">🛒</div>
             <h3>Your cart is empty</h3>
             <p className="empty-cart-text">Looks like you haven't added any tech items to your cart yet.</p>
-            <button className="btn-shop-now" onClick={() => setActivePage('shop')}>
+            <button className="btn-shop-now" onClick={() => navigate('/shop')}>
               Browse Tech Gear
             </button>
           </div>
@@ -54,8 +55,14 @@ export default function Cart({
             <div className="cart-left-card">
               <div className="cart-items-list">
                 {cart.map((item) => (
-                  <div key={item.product.id} className="cart-item-row">
-                    <div className="cart-item-img">{item.product.image}</div>
+                  <div key={item.product._id} className="cart-item-row">
+                    <div className="cart-item-img">
+                      {item.product.image.startsWith('http') ? (
+                        <img src={item.product.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : (
+                        item.product.image
+                      )}
+                    </div>
                     
                     <div className="cart-item-details">
                       <div className="cart-item-brand">{item.product.brand}</div>
@@ -67,7 +74,7 @@ export default function Cart({
                     <div className="cart-item-qty-wrap">
                       <button 
                         className="cart-item-qty-btn"
-                        onClick={() => updateCartQty(item.product.id, item.quantity - 1)}
+                        onClick={() => updateCartQty(item.product._id, item.quantity - 1)}
                         disabled={item.quantity <= 1}
                       >
                         -
@@ -75,7 +82,7 @@ export default function Cart({
                       <span className="cart-item-qty-val">{item.quantity}</span>
                       <button 
                         className="cart-item-qty-btn"
-                        onClick={() => updateCartQty(item.product.id, item.quantity + 1)}
+                        onClick={() => updateCartQty(item.product._id, item.quantity + 1)}
                         disabled={item.quantity >= item.product.stock}
                       >
                         +
@@ -90,7 +97,7 @@ export default function Cart({
                     {/* Remove */}
                     <button 
                       className="cart-item-remove-btn"
-                      onClick={() => removeFromCart(item.product.id)}
+                      onClick={() => removeFromCart(item.product._id)}
                       aria-label="Remove item"
                     >
                       <i className="ti ti-trash" aria-hidden="true"></i>
