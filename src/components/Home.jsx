@@ -171,10 +171,12 @@ export default function Home({
                 <div key={p._id} className="product-card">
                   <div className="product-img-container" onClick={() => handleProductClick(p._id)}>
                     <span className="badge-pos">
-                      {p.badgeType === 'sale' ? (
-                        <span className="badge-sale">{p.badge}</span>
+                      {p.oldPrice && p.oldPrice > p.price ? (
+                        <span className="badge-sale">
+                          -{Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100)}% OFF
+                        </span>
                       ) : (
-                        <span className="badge-new">{p.badge}</span>
+                        <span className="badge-new">NEW</span>
                       )}
                     </span>
                     {/* Wishlist Button */}
@@ -196,12 +198,18 @@ export default function Home({
                         style={{ width: '80%', height: '80%', objectFit: 'contain' }} 
                       />
                     ) : (
-                      p.image
+                      <span style={{ fontSize: '50px' }}>{p.image}</span>
                     )}
                   </div>
                   <div className="product-info">
                     <div className="product-brand" onClick={() => handleProductClick(p._id)}>{p.brand}</div>
-                    <div className="stars" onClick={() => handleProductClick(p._id)}>{p.stars}</div>
+                    
+                    {/* Inline ratings */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => handleProductClick(p._id)}>
+                      <span className="stars" style={{ marginBottom: 0 }}>{p.stars}</span>
+                      <span style={{ fontSize: '11.5px', color: '#888', fontWeight: '600' }}>({p.reviews} reviews)</span>
+                    </div>
+
                     <div 
                       className="product-name" 
                       onClick={() => handleProductClick(p._id)}
@@ -211,21 +219,15 @@ export default function Home({
                     </div>
                     <div className="product-footer">
                       <div className="price-container">
-                        <span className="product-price">Rs. {p.price.toLocaleString()}</span>
+                        <span className="product-price">
+                          LKR {p.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                         {p.oldPrice && (
-                          <span className="product-price-old">Rs. {p.oldPrice.toLocaleString()}</span>
+                          <span className="product-price-old">
+                            LKR {p.oldPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
                         )}
                       </div>
-                      <button 
-                        className="btn-cart" 
-                        aria-label="Add to cart"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart(p, 1);
-                        }}
-                      >
-                        <i className="ti ti-shopping-cart-plus" aria-hidden="true"></i>
-                      </button>
                     </div>
                   </div>
                 </div>

@@ -316,13 +316,15 @@ export default function ProductDetails({
             {finalSuggested.map((p) => {
               const isWishlisted = wishlist.includes(p._id);
               return (
-                <div key={p._id} className="product-card">
+                 <div key={p._id} className="product-card">
                   <div className="product-img-container" onClick={() => navigate(`/product/${p._id}`)}>
                     <span className="badge-pos">
-                      {p.badgeType === 'sale' ? (
-                        <span className="badge-sale">{p.badge}</span>
+                      {p.oldPrice && p.oldPrice > p.price ? (
+                        <span className="badge-sale">
+                          -{Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100)}% OFF
+                        </span>
                       ) : (
-                        <span className="badge-new">{p.badge}</span>
+                        <span className="badge-new">NEW</span>
                       )}
                     </span>
                     <button 
@@ -348,7 +350,13 @@ export default function ProductDetails({
                   </div>
                   <div className="product-info">
                     <div className="product-brand" onClick={() => navigate(`/product/${p._id}`)}>{p.brand}</div>
-                    <div className="stars" onClick={() => navigate(`/product/${p._id}`)}>{p.stars}</div>
+                    
+                    {/* Inline ratings */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate(`/product/${p._id}`)}>
+                      <span className="stars" style={{ marginBottom: 0 }}>{p.stars}</span>
+                      <span style={{ fontSize: '11.5px', color: '#888', fontWeight: '600' }}>({p.reviews} reviews)</span>
+                    </div>
+
                     <div 
                       className="product-name" 
                       onClick={() => navigate(`/product/${p._id}`)}
@@ -363,16 +371,6 @@ export default function ProductDetails({
                           <span className="product-price-old">LKR {p.oldPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         )}
                       </div>
-                      <button 
-                        className="btn-cart" 
-                        aria-label="Add to cart"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart(p, 1);
-                        }}
-                      >
-                        <i className="ti ti-shopping-cart-plus"></i>
-                      </button>
                     </div>
                   </div>
                 </div>
